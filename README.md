@@ -42,11 +42,11 @@ Single-threaded only (for now).
 
 ## Speeds
 
-Built w/ profile-guided optimisation
-CPU: i7-6700k (4.2 GHz)
-Compiler: GCC 9.3
-OS: Linux
-BMI2, LSB, POPCNT enabled
+Built w/ profile-guided optimisation \
+CPU: i7-6700k (4.2 GHz) \
+Compiler: GCC 9.3 \
+OS: Linux \
+BMI2, LSB, POPCNT enabled \
 PEXT bitboards
 
 | Name       | Depth | Nodes       | Time (ms) | Nodes/sec |

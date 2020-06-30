@@ -3,5 +3,5 @@
 compile_commands.json
 
 # Output
-*.o
+*.gcda
 perft
