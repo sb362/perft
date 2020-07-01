@@ -2,6 +2,8 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#define NDEBUG
+
 // Intrinsics for POPCNT/PEXT/PDEP/LSB/MSB
 // If disabled, a generic implementation is used
 
@@ -11,22 +13,22 @@
 
 // Lookup tables for various Square -> Bitboard calculations
 
-#define USE_SQUARE_BB	// 1 << sq_as_int
-//#define USE_BETWEEN_BB	// line_between(Square, Square)
+//#define USE_SQUARE_BB	// 1 << sq_as_int
+#define USE_BETWEEN_BB	// line_between(Square, Square)
 
 #define USE_KNIGHT_BB	// Knight attacks
 #define USE_KING_BB		// King attacks
 #define USE_BISHOP_BB	// Bishop attacks w/o occupancy
 #define USE_ROOK_BB		// Rook attacks w/o occupancy
-#define USE_QUEEN_BB	// Queen attacks w/o occupancy
+//#define USE_QUEEN_BB	// Queen attacks w/o occupancy
 
 // Sliding-piece attack generation
 // (pick one only, if PEXT/PDEP ensure you have BMI2 extensions enabled)
 
 //#define USE_KOGGE
 //#define USE_FANCY
-#define USE_PEXT
-//#define USE_PDEP
+//#define USE_PEXT
+#define USE_PDEP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -138,7 +140,7 @@ inline unsigned msb(const std::uint64_t x)
 
 	unsigned long result;
 	_BitScanReverse64(&result, x);
-	static_cast<unsigned>(result);
+	return static_cast<unsigned>(result);
 }
 #	else
 #		error "LSB intrinsics not supported"
@@ -977,7 +979,7 @@ template <> constexpr Bitboard attacks_from<Rook>(Bitboard pieces)
 
 template <> constexpr Bitboard attacks_from<Queen>(Bitboard pieces)
 {
-	return attacks_from<PieceType::Bishop>(pieces) | attacks_from<PieceType::Rook>(pieces);
+	return attacks_from<Bishop>(pieces) | attacks_from<Rook>(pieces);
 }
 
 // Determines attacks from several squares at once, with occupancy
@@ -991,15 +993,15 @@ template <> constexpr Bitboard attacks_from<Bishop>(Bitboard pieces, Bitboard oc
 	return ray_attacks<NorthEast, SouthEast, SouthWest, NorthWest>(pieces, occ);
 }
 
-template <> constexpr Bitboard attacks_from<PieceType::Rook>(Bitboard pieces, Bitboard occ)
+template <> constexpr Bitboard attacks_from<Rook>(Bitboard pieces, Bitboard occ)
 {
 	return ray_attacks<North, East, South, West>(pieces, occ);
 }
 
-template <> constexpr Bitboard attacks_from<PieceType::Queen>(Bitboard pieces, Bitboard occ)
+template <> constexpr Bitboard attacks_from<Queen>(Bitboard pieces, Bitboard occ)
 {
-	return attacks_from<PieceType::Bishop>(pieces, occ)
-		 | attacks_from<PieceType::Rook  >(pieces, occ);
+	return attacks_from<Bishop>(pieces, occ)
+		 | attacks_from<Rook  >(pieces, occ);
 }
 
 //
@@ -1093,15 +1095,14 @@ constexpr bool aligned(const Square a, const Square b, const Square c)
 template <Colour Us>
 constexpr Bitboard pawn_attacks(const Bitboard pawns)
 {
-	return Us == Colour::White ? shift_ex<NorthWest, NorthEast>(pawns)
-							   : shift_ex<SouthWest, SouthEast>(pawns);
+	return Us == White ? shift_ex<NorthWest, NorthEast>(pawns)
+					   : shift_ex<SouthWest, SouthEast>(pawns);
 }
 
 // Pawn attacks from a bitboard
 constexpr Bitboard pawn_attacks(const Colour us, const Bitboard pawns)
 {
-	return us == Colour::White ? pawn_attacks<Colour::White>(pawns)
-							   : pawn_attacks<Colour::Black>(pawns);
+	return us == White ? pawn_attacks<White>(pawns) : pawn_attacks<Black>(pawns);
 }
 
 // Pawn attacks from a single square
@@ -2259,7 +2260,7 @@ inline Nodes count_pawns(const Board &board, const Bitboard pawns, const Bitboar
 template <Colour Us>
 inline Nodes count_moves(const Board &board)
 {
-	Nodes nodes = 0, cnt;
+	Nodes nodes = 0;
 
 	const auto ksq      = Us == White ? board.white_king   : board.black_king;
 	const auto friendly = Us == White ? board.white_pieces : board.black_pieces;

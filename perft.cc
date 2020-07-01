@@ -9,6 +9,12 @@ using Milliseconds = std::chrono::milliseconds;
 using Clock = std::chrono::high_resolution_clock;
 using std::chrono::duration_cast;
 
+#if defined(NDEBUG)
+constexpr auto IncreaseDepth = true;
+#else
+constexpr auto IncreaseDepth = false;
+#endif
+
 struct NameFENDepth
 {
 	std::string name, fen;
@@ -17,13 +23,13 @@ struct NameFENDepth
 
 static std::array<NameFENDepth, 7> PredefinedFENs
 {{
-	{"startpos",	"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",					7},
-	{"kiwipete",	"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -", 	6},
-	{"pins",		"8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -",								8},
-	{"cpw4",		"r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",			6},
-	{"cpw5",		"rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ -",				6},
-	{"cpw6",		"r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - -",	6},
-	{"promotions",	"n1n5/PPPk4/8/8/8/8/4Kppp/5N1N b - -",									6}
+	{"startpos",	"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -",					IncreaseDepth ? 7 : 6},
+	{"kiwipete",	"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -", 	IncreaseDepth ? 6 : 5},
+	{"pins",		"8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -",								IncreaseDepth ? 8 : 7},
+	{"cpw4",		"r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq -",			IncreaseDepth ? 6 : 5},
+	{"cpw5",		"rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ -",				IncreaseDepth ? 6 : 5},
+	{"cpw6",		"r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - -",	IncreaseDepth ? 6 : 5},
+	{"promotions",	"n1n5/PPPk4/8/8/8/8/4Kppp/5N1N b - -",									IncreaseDepth ? 7 : 6}
 }};
 
 template <bool Divide = false>
@@ -45,6 +51,7 @@ int main(int argc, char *argv[])
 		("d,depth",		"Depth", cxxopts::value<std::uint16_t>())
 		("u,upto",		"Calculate for depths 1...n")
 		("b,bench",		"Benchmark mode")
+		("t,threads",	"Number of threads to use", cxxopts::value<std::uint16_t>())
 		("v,verify",	"Compare perft results to another UCI engine", cxxopts::value<std::string>())
 		("divide",		"Print move counts for each root move")
 		("c,compiler",	"Show compiler info");
