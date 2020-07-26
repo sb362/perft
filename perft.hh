@@ -1,9 +1,6 @@
 #pragma once
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#define NDEBUG
-
 // Intrinsics for POPCNT/PEXT/PDEP/LSB/MSB
 // If disabled, a generic implementation is used
 
@@ -14,12 +11,12 @@
 // Lookup tables for various Square -> Bitboard calculations
 
 //#define USE_SQUARE_BB	// 1 << sq_as_int
-#define USE_BETWEEN_BB	// line_between(Square, Square)
+//#define USE_BETWEEN_BB // line_between(Square, Square)
 
-#define USE_KNIGHT_BB	// Knight attacks
-#define USE_KING_BB		// King attacks
-#define USE_BISHOP_BB	// Bishop attacks w/o occupancy
-#define USE_ROOK_BB		// Rook attacks w/o occupancy
+#define USE_KNIGHT_BB // Knight attacks
+//#define USE_KING_BB	  // King attacks
+#define USE_BISHOP_BB // Bishop attacks w/o occupancy
+#define USE_ROOK_BB	  // Rook attacks w/o occupancy
 //#define USE_QUEEN_BB	// Queen attacks w/o occupancy
 
 // Sliding-piece attack generation
@@ -35,6 +32,8 @@
 #include <array>
 #include <charconv>
 #include <cstdint>
+#include <string>
+#include <thread>
 #include <type_traits>
 
 #define FMT_HEADER_ONLY
@@ -57,7 +56,7 @@
 #	endif
 #endif
 
-#define ASSERT(cond) ((void) 0)
+#define ASSERT(cond) ((void)0)
 
 //
 // Intrinsics
@@ -192,16 +191,16 @@ constexpr unsigned msb(std::uint64_t x)
 
 constexpr unsigned popcount_generic(std::uint64_t x)
 {
-	constexpr std::uint64_t m1	= 0x5555555555555555ull;
-	constexpr std::uint64_t m2	= 0x3333333333333333ull;
-	constexpr std::uint64_t m4	= 0x0F0F0F0F0F0F0F0Full;
-	constexpr std::uint64_t h01 = 0x0101010101010101ull;
+	constexpr std::uint64_t m1 = 0x5555555555555555ull;
+	constexpr std::uint64_t m2 = 0x3333333333333333ull;
+	constexpr std::uint64_t m4 = 0x0F0F0F0F0F0F0F0Full;
+	constexpr std::uint64_t h1 = 0x0101010101010101ull;
 
 	x -= (x >> 1u) & m1;
 	x = (x & m2) + ((x >> 2u) & m2);
 	x = (x + (x >> 4u)) & m4;
 
-	return (x * h01) >> 56u;
+	return (x * h1) >> 56u;
 }
 
 #if defined(USE_POPCNT)
@@ -237,56 +236,49 @@ constexpr std::underlying_type_t<Enum> to_int(const Enum e)
 
 namespace util
 {
-	template <typename T>
-	constexpr T min(const T a, const T b)
+	template <typename T> constexpr T min(const T a, const T b)
 	{
 		return (a < b) ? a : b;
 	}
 
-	template <typename T>
-	constexpr T max(const T a, const T b)
+	template <typename T> constexpr T max(const T a, const T b)
 	{
 		return (a > b) ? a : b;
 	}
 
-	template <typename T>
-	constexpr T clamp(const T x, const T lower, const T upper)
+	template <typename T> constexpr T clamp(const T x, const T lower, const T upper)
 	{
 		return util::min(util::max(x, lower), upper);
 	}
 
-	template <typename T>
-	constexpr T sgn(const T a)
+	template <typename T> constexpr T sgn(const T a)
 	{
 		return (T(0) < a) - (a < T(0));
 	}
 
-	template <typename T>
-	constexpr std::make_unsigned_t<T> abs(const T a)
+	template <typename T> constexpr std::make_unsigned_t<T> abs(const T a)
 	{
 		return a >= T(0) ? a : -a;
 	}
-}
+} // namespace util
 
 //
 // Adapted from:
 // https://stackoverflow.com/questions/35008089/
 //
 
-template <typename T, std::size_t S, std::size_t ...Next>
-struct array
+template <typename T, std::size_t S, std::size_t... Next> struct array
 {
 	using next_type = typename array<T, Next...>::type;
 	using type = std::array<next_type, S>;
 };
 
-template <typename T, std::size_t S>
-struct array<T, S>
+template <typename T, std::size_t S> struct array<T, S>
 {
 	using type = std::array<T, S>;
 };
 
-template <typename T, std::size_t I, std::size_t ...Next>
+template <typename T, std::size_t I, std::size_t... Next>
 using array_t = typename array<T, I, Next...>::type;
 
 //
@@ -296,13 +288,19 @@ using array_t = typename array<T, I, Next...>::type;
 constexpr auto Colours = 2;
 enum Colour : bool
 {
-	White, Black
+	White,
+	Black
 };
 
 constexpr auto PieceTypes = 6;
 enum PieceType : std::uint8_t
 {
-	Pawn, Knight, Bishop, Rook, Queen, King
+	Pawn,
+	Knight,
+	Bishop,
+	Rook,
+	Queen,
+	King
 };
 
 constexpr Colour operator~(const Colour colour)
@@ -341,14 +339,14 @@ enum class Square : std::uint8_t
 
 using Direction = std::int8_t;
 
-constexpr Direction North		= 8;
-constexpr Direction South		= -North;
-constexpr Direction East		= 1;
-constexpr Direction West		= -East;
-constexpr Direction NorthEast	= North + East;
-constexpr Direction NorthWest	= North + West;
-constexpr Direction SouthEast	= South + East;
-constexpr Direction SouthWest	= South + West;
+constexpr Direction North = 8;
+constexpr Direction South = -North;
+constexpr Direction East = 1;
+constexpr Direction West = -East;
+constexpr Direction NorthEast = North + East;
+constexpr Direction NorthWest = North + West;
+constexpr Direction SouthEast = South + East;
+constexpr Direction SouthWest = South + West;
 
 constexpr bool is_valid(const File file)
 {
@@ -412,8 +410,7 @@ template <> struct fmt::formatter<File>
 		return ctx.begin();
 	}
 
-	template <typename FormatContext>
-	constexpr auto format(const File file, FormatContext &ctx)
+	template <typename FormatContext> constexpr auto format(const File file, FormatContext &ctx)
 	{
 		return format_to(ctx.out(), "{}", to_char(file));
 	}
@@ -426,8 +423,7 @@ template <> struct fmt::formatter<Rank>
 		return ctx.begin();
 	}
 
-	template <typename FormatContext>
-	constexpr auto format(const Rank rank, FormatContext &ctx)
+	template <typename FormatContext> constexpr auto format(const Rank rank, FormatContext &ctx)
 	{
 		return format_to(ctx.out(), "{}", to_char(rank));
 	}
@@ -440,10 +436,9 @@ template <> struct fmt::formatter<Square>
 		return ctx.begin();
 	}
 
-	template <typename FormatContext>
-	constexpr auto format(const Square sq, FormatContext &ctx)
+	template <typename FormatContext> constexpr auto format(const Square sq, FormatContext &ctx)
 	{
-		return is_valid(sq)	? format_to(ctx.out(), "{}{}", file_of(sq), rank_of(sq))
+		return is_valid(sq) ? format_to(ctx.out(), "{}{}", file_of(sq), rank_of(sq))
 							: format_to(ctx.out(), "-");
 	}
 };
@@ -464,15 +459,42 @@ constexpr std::uint8_t distance(const Square a, const Square b)
 }
 
 #define ENABLE_ARITHMETIC_OPERATORS(A)                                                             \
-constexpr A operator+(const A a, const int b) { return static_cast<A>(static_cast<int>(a) + b); }  \
-constexpr A operator-(const A a, const int b) { return static_cast<A>(static_cast<int>(a) - b); }  \
-constexpr A operator*(const A a, const int b) { return static_cast<A>(static_cast<int>(a) * b); }  \
-constexpr A operator/(const A a, const int b) { return static_cast<A>(static_cast<int>(a) / b); }  \
-constexpr A operator%(const A a, const int b) { return static_cast<A>(static_cast<int>(a) % b); }  \
-constexpr A &operator+=(A &a, const int b) { return a = a + b; }                                   \
-constexpr A &operator-=(A &a, const int b) { return a = a - b; }                                   \
-constexpr A &operator++(A &a) { return a += 1; }                                                   \
-constexpr A &operator--(A &a) { return a -= 1; }
+	constexpr A operator+(const A a, const int b)                                                  \
+	{                                                                                              \
+		return static_cast<A>(static_cast<int>(a) + b);                                            \
+	}                                                                                              \
+	constexpr A operator-(const A a, const int b)                                                  \
+	{                                                                                              \
+		return static_cast<A>(static_cast<int>(a) - b);                                            \
+	}                                                                                              \
+	constexpr A operator*(const A a, const int b)                                                  \
+	{                                                                                              \
+		return static_cast<A>(static_cast<int>(a) * b);                                            \
+	}                                                                                              \
+	constexpr A operator/(const A a, const int b)                                                  \
+	{                                                                                              \
+		return static_cast<A>(static_cast<int>(a) / b);                                            \
+	}                                                                                              \
+	constexpr A operator%(const A a, const int b)                                                  \
+	{                                                                                              \
+		return static_cast<A>(static_cast<int>(a) % b);                                            \
+	}                                                                                              \
+	constexpr A &operator+=(A &a, const int b)                                                     \
+	{                                                                                              \
+		return a = a + b;                                                                          \
+	}                                                                                              \
+	constexpr A &operator-=(A &a, const int b)                                                     \
+	{                                                                                              \
+		return a = a - b;                                                                          \
+	}                                                                                              \
+	constexpr A &operator++(A &a)                                                                  \
+	{                                                                                              \
+		return a += 1;                                                                             \
+	}                                                                                              \
+	constexpr A &operator--(A &a)                                                                  \
+	{                                                                                              \
+		return a -= 1;                                                                             \
+	}
 
 ENABLE_ARITHMETIC_OPERATORS(File)
 ENABLE_ARITHMETIC_OPERATORS(Rank)
@@ -484,7 +506,10 @@ union CastlingRights
 {
 	std::uint8_t all : 4;
 
-	struct { std::uint8_t white : 2, black : 2; };
+	struct
+	{
+		std::uint8_t white : 2, black : 2;
+	};
 	struct
 	{
 		std::uint8_t white_oo : 1, white_ooo : 1;
@@ -492,16 +517,16 @@ union CastlingRights
 	};
 };
 
-constexpr CastlingRights NoCastling    = {0b0000};
-constexpr CastlingRights AllCastling   = {0b1111};
+constexpr CastlingRights NoCastling = {0b0000};
+constexpr CastlingRights AllCastling = {0b1111};
 constexpr CastlingRights WhiteCastling = {0b0011};
 constexpr CastlingRights BlackCastling = {0b1100};
 constexpr CastlingRights ShortCastling = {0b0101};
-constexpr CastlingRights LongCastling  = {0b1010};
+constexpr CastlingRights LongCastling = {0b1010};
 constexpr CastlingRights WhiteShortCastling {WhiteCastling.all & ShortCastling.all};
 constexpr CastlingRights BlackShortCastling {BlackCastling.all & ShortCastling.all};
-constexpr CastlingRights WhiteLongCastling  {WhiteCastling.all & LongCastling.all};
-constexpr CastlingRights BlackLongCastling  {BlackCastling.all & LongCastling.all};
+constexpr CastlingRights WhiteLongCastling {WhiteCastling.all & LongCastling.all};
+constexpr CastlingRights BlackLongCastling {BlackCastling.all & LongCastling.all};
 
 constexpr CastlingRights castling_rights(const Colour us, const bool oo)
 {
@@ -530,16 +555,17 @@ constexpr Square castling_rook_dest(const Colour us, const bool oo)
 	return make_square(oo ? File::F : File::D, us == White ? Rank::One : Rank::Eight);
 }
 
-static constexpr std::array CastlingRightsBySquare
-{
-	WhiteLongCastling, NoCastling, NoCastling, NoCastling, WhiteCastling, NoCastling, NoCastling, WhiteShortCastling,
-	NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling,
-	NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling,
-	NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling,
-	NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling,
-	NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling,
-	NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling, NoCastling,
-	BlackLongCastling, NoCastling, NoCastling, NoCastling, BlackCastling, NoCastling, NoCastling, BlackShortCastling
+static constexpr std::array CastlingRightsBySquare {
+	WhiteLongCastling,	NoCastling, NoCastling, NoCastling, WhiteCastling, NoCastling, NoCastling,
+	WhiteShortCastling, NoCastling, NoCastling, NoCastling, NoCastling,	   NoCastling, NoCastling,
+	NoCastling,			NoCastling, NoCastling, NoCastling, NoCastling,	   NoCastling, NoCastling,
+	NoCastling,			NoCastling, NoCastling, NoCastling, NoCastling,	   NoCastling, NoCastling,
+	NoCastling,			NoCastling, NoCastling, NoCastling, NoCastling,	   NoCastling, NoCastling,
+	NoCastling,			NoCastling, NoCastling, NoCastling, NoCastling,	   NoCastling, NoCastling,
+	NoCastling,			NoCastling, NoCastling, NoCastling, NoCastling,	   NoCastling, NoCastling,
+	NoCastling,			NoCastling, NoCastling, NoCastling, NoCastling,	   NoCastling, NoCastling,
+	BlackLongCastling,	NoCastling, NoCastling, NoCastling, BlackCastling, NoCastling, NoCastling,
+	BlackShortCastling
 };
 
 constexpr CastlingRights castling_rights(const Square sq)
@@ -613,17 +639,44 @@ constexpr Bitboard rank_bb(const Square sq)
 }
 
 #define ENABLE_BITBOARD_OPERATORS(Type, Convert)                                                   \
-constexpr Bitboard operator&(const Bitboard bb, const Type x) { return bb & Convert(x); }          \
-constexpr Bitboard operator|(const Bitboard bb, const Type x) { return bb | Convert(x); }          \
-constexpr Bitboard operator^(const Bitboard bb, const Type x) { return bb ^ Convert(x); }          \
+	constexpr Bitboard operator&(const Bitboard bb, const Type x)                                  \
+	{                                                                                              \
+		return bb & Convert(x);                                                                    \
+	}                                                                                              \
+	constexpr Bitboard operator|(const Bitboard bb, const Type x)                                  \
+	{                                                                                              \
+		return bb | Convert(x);                                                                    \
+	}                                                                                              \
+	constexpr Bitboard operator^(const Bitboard bb, const Type x)                                  \
+	{                                                                                              \
+		return bb ^ Convert(x);                                                                    \
+	}                                                                                              \
                                                                                                    \
-constexpr Bitboard &operator&=(Bitboard &bb, const Type x) { return bb &= Convert(x); }            \
-constexpr Bitboard &operator|=(Bitboard &bb, const Type x) { return bb |= Convert(x); }            \
-constexpr Bitboard &operator^=(Bitboard &bb, const Type x) { return bb ^= Convert(x); }            \
+	constexpr Bitboard &operator&=(Bitboard &bb, const Type x)                                     \
+	{                                                                                              \
+		return bb &= Convert(x);                                                                   \
+	}                                                                                              \
+	constexpr Bitboard &operator|=(Bitboard &bb, const Type x)                                     \
+	{                                                                                              \
+		return bb |= Convert(x);                                                                   \
+	}                                                                                              \
+	constexpr Bitboard &operator^=(Bitboard &bb, const Type x)                                     \
+	{                                                                                              \
+		return bb ^= Convert(x);                                                                   \
+	}                                                                                              \
                                                                                                    \
-constexpr Bitboard operator&(const Type x, const Bitboard bb) { return bb & x; }                   \
-constexpr Bitboard operator|(const Type x, const Bitboard bb) { return bb | x; }                   \
-constexpr Bitboard operator^(const Type x, const Bitboard bb) { return bb ^ x; }                   \
+	constexpr Bitboard operator&(const Type x, const Bitboard bb)                                  \
+	{                                                                                              \
+		return bb & x;                                                                             \
+	}                                                                                              \
+	constexpr Bitboard operator|(const Type x, const Bitboard bb)                                  \
+	{                                                                                              \
+		return bb | x;                                                                             \
+	}                                                                                              \
+	constexpr Bitboard operator^(const Type x, const Bitboard bb)                                  \
+	{                                                                                              \
+		return bb ^ x;                                                                             \
+	}
 
 ENABLE_BITBOARD_OPERATORS(Square, square_bb)
 ENABLE_BITBOARD_OPERATORS(File, file_bb)
@@ -927,8 +980,7 @@ template <class = void> constexpr Bitboard ray_attacks(const Bitboard)
 }
 
 // Determines direction-wise sliding piece attacks
-template <Direction D, Direction... Next>
-constexpr Bitboard ray_attacks(const Bitboard pieces)
+template <Direction D, Direction... Next> constexpr Bitboard ray_attacks(const Bitboard pieces)
 {
 	return shift<D>(fill<D>(pieces)) | ray_attacks<Next...>(pieces);
 }
@@ -1000,8 +1052,7 @@ template <> constexpr Bitboard attacks_from<Rook>(Bitboard pieces, Bitboard occ)
 
 template <> constexpr Bitboard attacks_from<Queen>(Bitboard pieces, Bitboard occ)
 {
-	return attacks_from<Bishop>(pieces, occ)
-		 | attacks_from<Rook  >(pieces, occ);
+	return attacks_from<Bishop>(pieces, occ) | attacks_from<Rook>(pieces, occ);
 }
 
 //
@@ -1049,8 +1100,7 @@ constexpr array_t<Bitboard, Squares, Squares> make_line_between_lut()
 		{
 			const auto i = to_int(sq), j = to_int(sq2);
 
-			lut[i][j] =	line_connecting(sq, sq2)
-					  & ((AllBB << i) ^ (AllBB << j));
+			lut[i][j] = line_connecting(sq, sq2) & ((AllBB << i) ^ (AllBB << j));
 			lut[i][j] &= (lut[i][j] - 1u);
 		}
 	}
@@ -1092,8 +1142,7 @@ constexpr bool aligned(const Square a, const Square b, const Square c)
 //
 
 // Pawn attacks from a bitboard
-template <Colour Us>
-constexpr Bitboard pawn_attacks(const Bitboard pawns)
+template <Colour Us> constexpr Bitboard pawn_attacks(const Bitboard pawns)
 {
 	return Us == White ? shift_ex<NorthWest, NorthEast>(pawns)
 					   : shift_ex<SouthWest, SouthEast>(pawns);
@@ -1111,8 +1160,7 @@ constexpr Bitboard pawn_attacks(const Colour us, const Square sq)
 	return pawn_attacks(us, square_bb(sq));
 }
 
-template <PieceType T>
-constexpr array_t<Bitboard, Squares> make_attacks_lut()
+template <PieceType T> constexpr array_t<Bitboard, Squares> make_attacks_lut()
 {
 	array_t<Bitboard, Squares> lut {};
 
@@ -1123,14 +1171,11 @@ constexpr array_t<Bitboard, Squares> make_attacks_lut()
 }
 
 // Determines attacks from a given square
-template <PieceType T>
-static constexpr auto AttacksBB = make_attacks_lut<T>();
+template <PieceType T> static constexpr auto AttacksBB = make_attacks_lut<T>();
 
-template <PieceType>
-constexpr Bitboard attacks_from(const Square);
+template <PieceType> constexpr Bitboard attacks_from(const Square);
 
-template <>
-constexpr Bitboard attacks_from<Knight>(const Square sq)
+template <> constexpr Bitboard attacks_from<Knight>(const Square sq)
 {
 #if defined(USE_KNIGHT_BB)
 	return AttacksBB<Knight>[to_int(sq)];
@@ -1139,8 +1184,7 @@ constexpr Bitboard attacks_from<Knight>(const Square sq)
 #endif
 }
 
-template <>
-constexpr Bitboard attacks_from<King>(const Square sq)
+template <> constexpr Bitboard attacks_from<King>(const Square sq)
 {
 #if defined(USE_KING_BB)
 	return AttacksBB<King>[to_int(sq)];
@@ -1149,8 +1193,7 @@ constexpr Bitboard attacks_from<King>(const Square sq)
 #endif
 }
 
-template <>
-constexpr Bitboard attacks_from<Bishop>(const Square sq)
+template <> constexpr Bitboard attacks_from<Bishop>(const Square sq)
 {
 #if defined(USE_BISHOP_BB)
 	return AttacksBB<Bishop>[to_int(sq)];
@@ -1159,8 +1202,7 @@ constexpr Bitboard attacks_from<Bishop>(const Square sq)
 #endif
 }
 
-template <>
-constexpr Bitboard attacks_from<Rook>(const Square sq)
+template <> constexpr Bitboard attacks_from<Rook>(const Square sq)
 {
 #if defined(USE_ROOK_BB)
 	return AttacksBB<Rook>[to_int(sq)];
@@ -1169,8 +1211,7 @@ constexpr Bitboard attacks_from<Rook>(const Square sq)
 #endif
 }
 
-template <> 
-constexpr Bitboard attacks_from<Queen>(const Square sq)
+template <> constexpr Bitboard attacks_from<Queen>(const Square sq)
 {
 #if defined(USE_QUEEN_BB)
 	return AttacksBB<Queen>[to_int(sq)];
@@ -1180,51 +1221,43 @@ constexpr Bitboard attacks_from<Queen>(const Square sq)
 }
 
 // Determines attacks from a given square, with occupancy
-template <PieceType T>
-constexpr Bitboard attacks_from(const Square sq, const Bitboard)
+template <PieceType T> constexpr Bitboard attacks_from(const Square sq, const Bitboard)
 {
 	return attacks_from<T>(sq);
 }
 
 #if defined(USE_KOGGE)
-template <>
-constexpr Bitboard attacks_from<Bishop>(const Square sq, const Bitboard occ)
+template <> constexpr Bitboard attacks_from<Bishop>(const Square sq, const Bitboard occ)
 {
 	ASSERT(is_valid(sq));
 	return attacks_from<Bishop>(square_bb(sq), occ);
 }
 
-template <>
-constexpr Bitboard attacks_from<Rook>(const Square sq, const Bitboard occ)
+template <> constexpr Bitboard attacks_from<Rook>(const Square sq, const Bitboard occ)
 {
 	ASSERT(is_valid(sq));
 	return attacks_from<Rook>(square_bb(sq), occ);
 }
 
-template <>
-constexpr Bitboard attacks_from<Queen>(const Square sq, const Bitboard occ)
+template <> constexpr Bitboard attacks_from<Queen>(const Square sq, const Bitboard occ)
 {
 	return attacks_from<Bishop>(sq, occ) | attacks_from<Rook>(sq, occ);
 }
 #else
-template <PieceType>
-constexpr Bitboard sliding_attacks(const Square, const Bitboard);
+template <PieceType> constexpr Bitboard sliding_attacks(const Square, const Bitboard);
 
-template <>
-constexpr Bitboard sliding_attacks<Bishop>(const Square sq, const Bitboard occ)
+template <> constexpr Bitboard sliding_attacks<Bishop>(const Square sq, const Bitboard occ)
 {
 	return ray_attacks<NorthEast, SouthEast, SouthWest, NorthWest>(square_bb(sq), occ);
 }
 
-template <>
-constexpr Bitboard sliding_attacks<Rook>(const Square sq, const Bitboard occ)
+template <> constexpr Bitboard sliding_attacks<Rook>(const Square sq, const Bitboard occ)
 {
 	return ray_attacks<North, East, South, West>(square_bb(sq), occ);
 }
 
 #	if defined(USE_FANCY)
-constexpr array_t<Bitboard, Squares> PrecomputedBishopMagics
-{
+constexpr array_t<Bitboard, Squares> PrecomputedBishopMagics {
 	0x04408a8084008180, 0x5c20220a02023410, 0x9004010202080000, 0x0020a90100440021,
 	0x2002021000400412, 0x900a022220004014, 0x006084886030a000, 0x6900602216104000,
 	0x1500100238890400, 0x0430a08182060040, 0x0100104102002010, 0x2084040404814004,
@@ -1240,11 +1273,9 @@ constexpr array_t<Bitboard, Squares> PrecomputedBishopMagics
 	0x800d1402a0042010, 0x0802011088940344, 0x0180011088040000, 0x0814380084040088,
 	0x00004a0963040097, 0x0464220e6a420081, 0x0020610102188000, 0x0204c10801010008,
 	0x0620240108080220, 0x0004008a08210404, 0x200c001302949000, 0x2a00044080208804,
-	0x0040048a91820210, 0x00100c2005012200, 0x1420900310040884, 0x805220940900c100
-};
+	0x0040048a91820210, 0x00100c2005012200, 0x1420900310040884, 0x805220940900c100};
 
-constexpr array_t<Bitboard, Squares> PrecomputedRookMagics
-{
+constexpr array_t<Bitboard, Squares> PrecomputedRookMagics {
 	0x0080001084284000, 0x2140022000100040, 0x0d00082001004010, 0x0900100100882084,
 	0x0080080080040002, 0xc1800600010c0080, 0x0600040100a80200, 0x4100020088482900,
 	0x1089800040008020, 0x4000404010002000, 0x4030808020001000, 0x0000801000080080,
@@ -1260,27 +1291,25 @@ constexpr array_t<Bitboard, Squares> PrecomputedRookMagics
 	0x02204000800c2880, 0x0c10002000400040, 0x4500201200804200, 0x0e50010822910100,
 	0x1200040008008080, 0x080e000400028080, 0x0000018208100400, 0x0440004400a10200,
 	0xd308204011020082, 0xc447102040090181, 0x00060020420a8012, 0x00402e40180e00e2,
-	0x1000054800110095, 0x0241000400020801, 0x0001300100880244, 0x0061122401004a86
-};
+	0x1000054800110095, 0x0241000400020801, 0x0001300100880244, 0x0061122401004a86};
 #	endif
 
 struct MagicInfo
 {
 #	if defined(USE_FANCY)
-		Bitboard mask, magic;
-		std::uint8_t shift;
+	Bitboard mask, magic;
+	std::uint8_t shift;
 #	elif defined(USE_PEXT)
-		Bitboard mask;
+	Bitboard mask;
 #	elif defined(USE_PDEP)
-		Bitboard mask, postmask;
+	Bitboard mask, postmask;
 #	endif
 
 	std::size_t offset;
 };
 
 // Stores magic info for each square + attack database
-template <PieceType T>
-struct MagicTable
+template <PieceType T> struct MagicTable
 {
 	static constexpr auto Size = T == Rook ? 102400 : 5248;
 
@@ -1299,8 +1328,7 @@ struct MagicTable
 
 		for (auto sq = Square::A1; sq <= Square::H8; ++sq)
 		{
-			edges = ((Rank1BB | Rank8BB) & ~rank_bb(sq))
-				  | ((FileABB | FileHBB) & ~file_bb(sq));
+			edges = ((Rank1BB | Rank8BB) & ~rank_bb(sq)) | ((FileABB | FileHBB) & ~file_bb(sq));
 
 			attacks = sliding_attacks<T>(sq, 0);
 
@@ -1311,36 +1339,37 @@ struct MagicTable
 
 #	if defined(USE_FANCY)
 			magic_info[to_int(sq)].shift = 64u - popcount_generic(magic_info[to_int(sq)].mask);
-			magic_info[to_int(sq)].magic = T == Rook ? PrecomputedRookMagics[to_int(sq)]
-											 : PrecomputedBishopMagics[to_int(sq)];
+			magic_info[to_int(sq)].magic =
+				T == Rook ? PrecomputedRookMagics[to_int(sq)] : PrecomputedBishopMagics[to_int(sq)];
 #	endif
 
-			magic_info[to_int(sq)].offset = sq == Square::A1 ? 0
-											 : magic_info[to_int(sq - 1)].offset + size;
+			magic_info[to_int(sq)].offset =
+				sq == Square::A1 ? 0 : magic_info[to_int(sq - 1)].offset + size;
 
-			occ  = 0;
+			occ = 0;
 			size = 0;
 			do
 			{
 				attacks = sliding_attacks<T>(sq, occ);
 
 #	if defined(USE_PDEP)
-				attack_table[magic_info[to_int(sq)].offset + index(sq, occ)] = pext(attacks, magic_info[to_int(sq)].postmask);
+				attack_table[magic_info[to_int(sq)].offset + index(sq, occ)] =
+					pext(attacks, magic_info[to_int(sq)].postmask);
 #	else
 				attack_table[magic_info[to_int(sq)].offset + index(sq, occ)] = attacks;
 #	endif
 
 				++size;
 				occ = (occ - magic_info[to_int(sq)].mask) & magic_info[to_int(sq)].mask;
-			}
-			while (occ);
+			} while (occ);
 		}
 	}
 
 	std::size_t index(const Square sq, const Bitboard occ) const
 	{
 #	if defined(USE_FANCY)
-		return ((occ & magic_info[to_int(sq)].mask) * magic_info[to_int(sq)].magic) >> magic_info[to_int(sq)].shift;
+		return ((occ & magic_info[to_int(sq)].mask) * magic_info[to_int(sq)].magic) >>
+			   magic_info[to_int(sq)].shift;
 #	elif defined(USE_PEXT) || defined(USE_PDEP)
 		return pext(occ, magic_info[to_int(sq)].mask);
 #	endif
@@ -1361,20 +1390,17 @@ struct MagicTable
 static MagicTable<Bishop> bishop_magic_table {};
 static MagicTable<Rook> rook_magic_table {};
 
-template <>
-inline Bitboard attacks_from<Bishop>(const Square sq, const Bitboard occ)
+template <> inline Bitboard attacks_from<Bishop>(const Square sq, const Bitboard occ)
 {
 	return bishop_magic_table.probe(sq, occ);
 }
 
-template <>
-inline Bitboard attacks_from<Rook>(const Square sq, const Bitboard occ)
+template <> inline Bitboard attacks_from<Rook>(const Square sq, const Bitboard occ)
 {
 	return rook_magic_table.probe(sq, occ);
 }
 
-template <>
-inline Bitboard attacks_from<Queen>(const Square sq, const Bitboard occ)
+template <> inline Bitboard attacks_from<Queen>(const Square sq, const Bitboard occ)
 {
 	return attacks_from<Bishop>(sq, occ) | attacks_from<Rook>(sq, occ);
 }
@@ -1479,30 +1505,30 @@ inline int parse_fen(Board &board, std::string_view fen)
 			c = std::tolower(c);
 
 			const auto sq = make_square(file, rank);
-			
+
 			switch (c)
 			{
-			case 'p':
-				board.pawns |= sq;
-				break;
-			case 'n':
-				board.knights |= sq;
-				break;
-			case 'b':
-				board.bishops_queens |= sq;
-				break;
-			case 'r':
-				board.rooks_queens |= sq;
-				break;
-			case 'q':
-				board.bishops_queens |= sq;
-				board.rooks_queens |= sq;
-				break;
-			case 'k':
-				(colour == White ? board.white_king : board.black_king) = sq;
-				break;
-			default:
-				std::abort();
+				case 'p':
+					board.pawns |= sq;
+					break;
+				case 'n':
+					board.knights |= sq;
+					break;
+				case 'b':
+					board.bishops_queens |= sq;
+					break;
+				case 'r':
+					board.rooks_queens |= sq;
+					break;
+				case 'q':
+					board.bishops_queens |= sq;
+					board.rooks_queens |= sq;
+					break;
+				case 'k':
+					(colour == White ? board.white_king : board.black_king) = sq;
+					break;
+				default:
+					std::abort();
 			}
 
 			(colour == White ? board.white_pieces : board.black_pieces) |= sq;
@@ -1536,22 +1562,22 @@ inline int parse_fen(Board &board, std::string_view fen)
 
 			switch (c)
 			{
-			case 'K':
-				rights = WhiteShortCastling;
-				break;
-			case 'Q':
-				rights = WhiteLongCastling;
-				break;
-			case 'k':
-				rights = BlackShortCastling;
-				break;
-			case 'q':
-				rights = BlackLongCastling;
-				break;
-			case '-':
-				break;
-			default:
-				return 39; // Unknown character
+				case 'K':
+					rights = WhiteShortCastling;
+					break;
+				case 'Q':
+					rights = WhiteLongCastling;
+					break;
+				case 'k':
+					rights = BlackShortCastling;
+					break;
+				case 'q':
+					rights = BlackLongCastling;
+					break;
+				case '-':
+					break;
+				default:
+					return 39; // Unknown character
 			}
 
 			board.castling_rights.all |= rights.all;
@@ -1567,7 +1593,7 @@ inline int parse_fen(Board &board, std::string_view fen)
 		const auto sq = make_square(parse_file(c), parse_rank(fen[++pos]));
 		if (!is_valid(sq))
 			return 41; // Invalid en passant square
-		
+
 		board.en_passant = sq;
 	}
 	pos += 2;
@@ -1642,47 +1668,44 @@ constexpr Board startpos()
 	return board;
 }
 
-template <Colour Us>
-constexpr Bitboard checks(const Board &board)
+template <Colour Us> constexpr Bitboard checks(const Board &board)
 {
-	const auto ksq			= Us == White ? board.white_king : board.black_king;
-	const auto their_pieces	= Us == White ? board.black_pieces : board.white_pieces;
+	const auto ksq = Us == White ? board.white_king : board.black_king;
+	const auto their_pieces = Us == White ? board.black_pieces : board.white_pieces;
 
 	const auto occ = board.white_pieces | board.black_pieces;
 
-	return ((attacks_from<Bishop>(ksq, occ) & board.bishops_queens)
-		|   (attacks_from<Rook>  (ksq, occ) & board.rooks_queens)
-		|   (attacks_from<Knight>(ksq) & board.knights)
-		|   (pawn_attacks(Us, ksq) & board.pawns)) & their_pieces;
+	return ((attacks_from<Bishop>(ksq, occ) & board.bishops_queens) |
+			(attacks_from<Rook>(ksq, occ) & board.rooks_queens) |
+			(attacks_from<Knight>(ksq) & board.knights) | (pawn_attacks(Us, ksq) & board.pawns)) &
+		   their_pieces;
 }
 
-template <Colour Us>
-constexpr Bitboard unsafe_squares(const Board &board)
+template <Colour Us> constexpr Bitboard unsafe_squares(const Board &board)
 {
-	constexpr auto Them		= ~Us;
-	const auto ksq			= Us == White ? board.white_king : board.black_king;
-	const auto eksq			= Us == White ? board.black_king : board.white_king;
-	const auto their_pieces	= Us == White ? board.black_pieces : board.white_pieces;
+	constexpr auto Them = ~Us;
+	const auto ksq = Us == White ? board.white_king : board.black_king;
+	const auto eksq = Us == White ? board.black_king : board.white_king;
+	const auto their_pieces = Us == White ? board.black_pieces : board.white_pieces;
 
 	const auto occ = (board.white_pieces | board.black_pieces) ^ ksq;
 
-	return attacks_from<Bishop>(board.bishops_queens & their_pieces, occ)
-		|  attacks_from<Rook>  (board.rooks_queens & their_pieces, occ)
-		|  attacks_from<Knight>(board.knights & their_pieces)
-		|  attacks_from<King>  (eksq)
-		|  pawn_attacks<Them>  (board.pawns & their_pieces);
+	return attacks_from<Bishop>(board.bishops_queens & their_pieces, occ) |
+		   attacks_from<Rook>(board.rooks_queens & their_pieces, occ) |
+		   attacks_from<Knight>(board.knights & their_pieces) | attacks_from<King>(eksq) |
+		   pawn_attacks<Them>(board.pawns & their_pieces);
 }
 
-template <Colour us>
-inline Bitboard pinned_pieces(const Board &board)
+template <Colour us> inline Bitboard pinned_pieces(const Board &board)
 {
-	const auto ksq		= us == White ? board.white_king : board.black_king;
-	const auto friendly	= us == White ? board.white_pieces : board.black_pieces;
-	const auto enemy	= us == White ? board.black_pieces : board.white_pieces;
-	const auto occ		= friendly | enemy;
+	const auto ksq = us == White ? board.white_king : board.black_king;
+	const auto friendly = us == White ? board.white_pieces : board.black_pieces;
+	const auto enemy = us == White ? board.black_pieces : board.white_pieces;
+	const auto occ = friendly | enemy;
 
-	auto candidates = ((attacks_from<Bishop>(ksq) & board.bishops_queens)
-					|  (attacks_from<Rook>  (ksq) & board.rooks_queens)) & enemy;
+	auto candidates = ((attacks_from<Bishop>(ksq) & board.bishops_queens) |
+					   (attacks_from<Rook>(ksq) & board.rooks_queens)) &
+					  enemy;
 
 	Bitboard pinned = 0;
 
@@ -1783,8 +1806,8 @@ void do_move(Board &board, const Square from, const Square to)
 		if (distance(from, to) == 2)
 		{
 			const auto oo = to > from;
-			const auto rook_mask = square_bb(castling_rook_source(Us, oo),
-											 castling_rook_dest(Us, oo));
+			const auto rook_mask =
+				square_bb(castling_rook_source(Us, oo), castling_rook_dest(Us, oo));
 
 			board.rooks_queens ^= rook_mask;
 
@@ -1824,7 +1847,7 @@ inline int parse_and_push_uci(Board &board, std::string_view uci)
 
 	if (!is_valid(from))
 		return 4;
-	
+
 	if (!is_valid(to))
 		return 5;
 
@@ -1878,13 +1901,15 @@ using Nodes = std::uint64_t;
 using Depth = std::uint8_t;
 
 template <Colour Us, PieceType T, bool Pinned, bool Divide = false>
-inline Nodes perft_type(const Board &board, Bitboard pieces, const Bitboard targets, const Depth depth);
+inline Nodes perft_type(const Board &board, Bitboard pieces, const Bitboard targets,
+						const Depth depth);
 
 template <Colour Us, bool Divide = false>
 inline Nodes perft_king(const Board &board, const Bitboard targets, const Depth depth);
 
 template <Colour Us, bool Pinned, bool Divide = false>
-inline Nodes perft_pawns(const Board &board, const Bitboard pawns, const Bitboard targets, const Depth depth);
+inline Nodes perft_pawns(const Board &board, const Bitboard pawns, const Bitboard targets,
+						 const Depth depth);
 
 template <Colour Us> inline Nodes count_moves(const Board &board);
 
@@ -1899,9 +1924,9 @@ inline Nodes perft_colour(const Board &board, const Depth depth)
 
 	Nodes nodes = 0, cnt;
 
-	const auto ksq      = Us == White ? board.white_king   : board.black_king;
+	const auto ksq = Us == White ? board.white_king : board.black_king;
 	const auto friendly = Us == White ? board.white_pieces : board.black_pieces;
-	const auto enemy    = Us == White ? board.black_pieces : board.white_pieces;
+	const auto enemy = Us == White ? board.black_pieces : board.white_pieces;
 
 	const auto unsafe = unsafe_squares<Us>(board);
 
@@ -1924,9 +1949,9 @@ inline Nodes perft_colour(const Board &board, const Depth depth)
 	else
 	{
 		// Short
-		if (   (board.castling_rights.all & castling_rights(Us, true).all)
-			&& !((friendly | enemy) & castling_rook_path(Us, true))
-			&& !(unsafe & castling_king_path(Us, true)))
+		if ((board.castling_rights.all & castling_rights(Us, true).all) &&
+			!((friendly | enemy) & castling_rook_path(Us, true)) &&
+			!(unsafe & castling_king_path(Us, true)))
 		{
 			Board new_board = board;
 			do_move<Us, King>(new_board, ksq, castling_king_dest(Us, true));
@@ -1938,9 +1963,9 @@ inline Nodes perft_colour(const Board &board, const Depth depth)
 		}
 
 		// Long
-		if (   (board.castling_rights.all & castling_rights(Us, false).all)
-			&& !((friendly | enemy) & castling_rook_path(Us, false))
-			&& !(unsafe & castling_king_path(Us, false)))
+		if ((board.castling_rights.all & castling_rights(Us, false).all) &&
+			!((friendly | enemy) & castling_rook_path(Us, false)) &&
+			!(unsafe & castling_king_path(Us, false)))
 		{
 			Board new_board = board;
 			do_move<Us, King>(new_board, ksq, castling_king_dest(Us, false));
@@ -1954,23 +1979,29 @@ inline Nodes perft_colour(const Board &board, const Depth depth)
 
 	const auto pinned = pinned_pieces<Us>(board);
 
-	nodes += perft_type<Us, Knight, false, Divide>(board, board.knights        & mask & ~pinned, targets, depth);
-	nodes += perft_type<Us, Bishop, false, Divide>(board, board.bishops_queens & mask & ~pinned, targets, depth);
-	nodes += perft_type<Us, Rook,   false, Divide>(board, board.rooks_queens   & mask & ~pinned, targets, depth);
-	nodes += perft_pawns<Us, false, Divide>       (board, board.pawns          & mask & ~pinned, targets, depth);
+	nodes += perft_type<Us, Knight, false, Divide>(board, board.knights & mask & ~pinned, targets,
+												   depth);
+	nodes += perft_type<Us, Bishop, false, Divide>(board, board.bishops_queens & mask & ~pinned,
+												   targets, depth);
+	nodes += perft_type<Us, Rook, false, Divide>(board, board.rooks_queens & mask & ~pinned,
+												 targets, depth);
+	nodes += perft_pawns<Us, false, Divide>(board, board.pawns & mask & ~pinned, targets, depth);
 
 	if (!(unsafe & ksq))
 	{
-		nodes += perft_type<Us, Bishop, true, Divide>(board, board.bishops_queens & mask & pinned, targets, depth);
-		nodes += perft_type<Us, Rook,   true, Divide>(board, board.rooks_queens   & mask & pinned, targets, depth);
-		nodes += perft_pawns<Us, true, Divide>       (board, board.pawns          & mask & pinned, targets, depth);
+		nodes += perft_type<Us, Bishop, true, Divide>(board, board.bishops_queens & mask & pinned,
+													  targets, depth);
+		nodes += perft_type<Us, Rook, true, Divide>(board, board.rooks_queens & mask & pinned,
+													targets, depth);
+		nodes += perft_pawns<Us, true, Divide>(board, board.pawns & mask & pinned, targets, depth);
 	}
 
 	return nodes;
 }
 
 template <Colour Us, PieceType T, bool Pinned, bool Divide>
-inline Nodes perft_type(const Board &board, Bitboard pieces, const Bitboard targets, const Depth depth)
+inline Nodes perft_type(const Board &board, Bitboard pieces, const Bitboard targets,
+						const Depth depth)
 {
 	static_assert(T != King && T != Pawn, "Use count_king_moves/count_pawn_moves instead");
 
@@ -2013,7 +2044,7 @@ inline Nodes perft_king(const Board &board, const Bitboard targets, const Depth 
 {
 	Nodes nodes = 0, cnt;
 	Board new_board;
-	
+
 	const auto ksq = Us == White ? board.white_king : board.black_king;
 
 	auto attacks = attacks_from<King>(ksq) & targets;
@@ -2035,7 +2066,8 @@ inline Nodes perft_king(const Board &board, const Bitboard targets, const Depth 
 }
 
 template <Colour Us, bool Divide = false>
-inline Nodes perft_promotions(const Board &board, const Square from, const Square to, const Depth depth)
+inline Nodes perft_promotions(const Board &board, const Square from, const Square to,
+							  const Depth depth)
 {
 	Nodes nodes = 0, cnt;
 
@@ -2075,19 +2107,20 @@ inline Nodes perft_promotions(const Board &board, const Square from, const Squar
 }
 
 template <Colour Us, bool Pinned, bool Divide>
-inline Nodes perft_pawns(const Board &board, const Bitboard pawns, const Bitboard targets, const Depth depth)
+inline Nodes perft_pawns(const Board &board, const Bitboard pawns, const Bitboard targets,
+						 const Depth depth)
 {
 	Nodes nodes = 0, cnt;
 	Board new_board;
 
-	constexpr auto Rank3  = Us == White ? Rank::Three : Rank::Six;
-	constexpr auto Rank7  = Us == White ? Rank::Seven : Rank::Two;
-	constexpr auto Up     = Us == White ? North       : South;
+	constexpr auto Rank3 = Us == White ? Rank::Three : Rank::Six;
+	constexpr auto Rank7 = Us == White ? Rank::Seven : Rank::Two;
+	constexpr auto Up = Us == White ? North : South;
 	constexpr auto UpWest = Up + West, UpEast = Up + East;
 
-	const auto ksq   = Us == White ? board.white_king   : board.black_king;
+	const auto ksq = Us == White ? board.white_king : board.black_king;
 	const auto enemy = Us == White ? board.black_pieces : board.white_pieces;
-	const auto occ   = board.white_pieces | board.black_pieces, empty = ~occ;
+	const auto occ = board.white_pieces | board.black_pieces, empty = ~occ;
 
 	// En passant
 	if (is_valid(board.en_passant))
@@ -2104,8 +2137,8 @@ inline Nodes perft_pawns(const Board &board, const Bitboard pawns, const Bitboar
 				// Check if performing en passant puts us in check.
 				// Only sliding pieces can put us in check here.
 				const auto new_occ = (occ ^ from ^ target) | board.en_passant;
-				if (   (attacks_from<Bishop>(ksq, new_occ) & board.bishops_queens & enemy)
-					|| (attacks_from<Rook>  (ksq, new_occ) & board.rooks_queens & enemy))
+				if ((attacks_from<Bishop>(ksq, new_occ) & board.bishops_queens & enemy) ||
+					(attacks_from<Rook>(ksq, new_occ) & board.rooks_queens & enemy))
 					continue;
 
 				Board new_board = board;
@@ -2146,7 +2179,7 @@ inline Nodes perft_pawns(const Board &board, const Bitboard pawns, const Bitboar
 	bb = shift<Up>(single_push & Rank3) & empty & targets;
 	while (bb)
 	{
-		const auto to = static_cast<Square>(lsb(bb)); 
+		const auto to = static_cast<Square>(lsb(bb));
 		const auto from = to - Up * 2;
 		bb &= (bb - 1);
 
@@ -2183,7 +2216,7 @@ inline Nodes perft_pawns(const Board &board, const Bitboard pawns, const Bitboar
 		const auto to = static_cast<Square>(lsb(bb));
 		const auto from = to - UpWest;
 		bb &= (bb - 1);
-		
+
 		if (Pinned && !aligned(ksq, from, to))
 			continue;
 
@@ -2203,7 +2236,7 @@ inline Nodes perft_pawns(const Board &board, const Bitboard pawns, const Bitboar
 		const auto to = static_cast<Square>(lsb(bb));
 		const auto from = to - UpEast;
 		bb &= (bb - 1);
-		
+
 		if (Pinned && !aligned(ksq, from, to))
 			continue;
 
@@ -2223,7 +2256,7 @@ inline Nodes perft_pawns(const Board &board, const Bitboard pawns, const Bitboar
 		const auto to = static_cast<Square>(lsb(bb));
 		const auto from = to - UpWest;
 		bb &= (bb - 1);
-		
+
 		if (Pinned && !aligned(ksq, from, to))
 			continue;
 
@@ -2237,7 +2270,7 @@ inline Nodes perft_pawns(const Board &board, const Bitboard pawns, const Bitboar
 		const auto to = static_cast<Square>(lsb(bb));
 		const auto from = to - UpEast;
 		bb &= (bb - 1);
-		
+
 		if (Pinned && !aligned(ksq, from, to))
 			continue;
 
@@ -2255,16 +2288,15 @@ template <Colour Us, PieceType T, bool Pinned>
 inline Nodes count_type(const Board &board, Bitboard pieces, const Bitboard targets);
 
 template <Colour Us, bool Pinned>
-inline Nodes count_pawns(const Board &board, const Bitboard pawns, const Bitboard targets);
+inline Nodes count_pawn_moves(const Board &board, const Bitboard pawns, const Bitboard targets);
 
-template <Colour Us>
-inline Nodes count_moves(const Board &board)
+template <Colour Us> inline Nodes count_moves(const Board &board)
 {
 	Nodes nodes = 0;
 
-	const auto ksq      = Us == White ? board.white_king   : board.black_king;
+	const auto ksq = Us == White ? board.white_king : board.black_king;
 	const auto friendly = Us == White ? board.white_pieces : board.black_pieces;
-	const auto enemy    = Us == White ? board.black_pieces : board.white_pieces;
+	const auto enemy = Us == White ? board.black_pieces : board.white_pieces;
 
 	const auto unsafe = unsafe_squares<Us>(board);
 
@@ -2287,30 +2319,30 @@ inline Nodes count_moves(const Board &board)
 	else
 	{
 		// Short
-		if (   (board.castling_rights.all & castling_rights(Us, true).all)
-			&& !((friendly | enemy) & castling_rook_path(Us, true))
-			&& !(unsafe & castling_king_path(Us, true)))
+		if ((board.castling_rights.all & castling_rights(Us, true).all) &&
+			!((friendly | enemy) & castling_rook_path(Us, true)) &&
+			!(unsafe & castling_king_path(Us, true)))
 			++nodes;
 
 		// Long
-		if (   (board.castling_rights.all & castling_rights(Us, false).all)
-			&& !((friendly | enemy) & castling_rook_path(Us, false))
-			&& !(unsafe & castling_king_path(Us, false)))
+		if ((board.castling_rights.all & castling_rights(Us, false).all) &&
+			!((friendly | enemy) & castling_rook_path(Us, false)) &&
+			!(unsafe & castling_king_path(Us, false)))
 			++nodes;
 	}
 
 	const auto pinned = pinned_pieces<Us>(board);
 
-	nodes += count_type<Us, Knight, false>(board, board.knights        & mask & ~pinned, targets);
+	nodes += count_type<Us, Knight, false>(board, board.knights & mask & ~pinned, targets);
 	nodes += count_type<Us, Bishop, false>(board, board.bishops_queens & mask & ~pinned, targets);
-	nodes += count_type<Us, Rook,   false>(board, board.rooks_queens   & mask & ~pinned, targets);
-	nodes += count_pawns<Us, false>       (board, board.pawns          & mask & ~pinned, targets);
+	nodes += count_type<Us, Rook, false>(board, board.rooks_queens & mask & ~pinned, targets);
+	nodes += count_pawn_moves<Us, false>(board, board.pawns & mask & ~pinned, targets);
 
 	if (!(unsafe & ksq))
 	{
 		nodes += count_type<Us, Bishop, true>(board, board.bishops_queens & mask & pinned, targets);
-		nodes += count_type<Us, Rook,   true>(board, board.rooks_queens   & mask & pinned, targets);
-		nodes += count_pawns<Us, true>       (board, board.pawns          & mask & pinned, targets);
+		nodes += count_type<Us, Rook, true>(board, board.rooks_queens & mask & pinned, targets);
+		nodes += count_pawn_moves<Us, true>(board, board.pawns & mask & pinned, targets);
 	}
 
 	return nodes;
@@ -2354,18 +2386,18 @@ inline Nodes count_type(const Board &board, Bitboard pieces, const Bitboard targ
 }
 
 template <Colour Us, bool Pinned>
-inline Nodes count_pawns(const Board &board, const Bitboard pawns, const Bitboard targets)
+inline Nodes count_pawn_moves(const Board &board, const Bitboard pawns, const Bitboard targets)
 {
 	Nodes nodes = 0;
 
-	constexpr auto Rank3  = Us == White ? Rank::Three : Rank::Six;
-	constexpr auto Rank7  = Us == White ? Rank::Seven : Rank::Two;
-	constexpr auto Up     = Us == White ? North       : South;
+	constexpr auto Rank3 = Us == White ? Rank::Three : Rank::Six;
+	constexpr auto Rank7 = Us == White ? Rank::Seven : Rank::Two;
+	constexpr auto Up = Us == White ? North : South;
 	constexpr auto UpWest = Up + West, UpEast = Up + East;
 
-	const auto ksq   = Us == White ? board.white_king   : board.black_king;
+	const auto ksq = Us == White ? board.white_king : board.black_king;
 	const auto enemy = Us == White ? board.black_pieces : board.white_pieces;
-	const auto occ   = board.white_pieces | board.black_pieces, empty = ~occ;
+	const auto occ = board.white_pieces | board.black_pieces, empty = ~occ;
 
 	// En passant
 	if (is_valid(board.en_passant))
@@ -2382,8 +2414,8 @@ inline Nodes count_pawns(const Board &board, const Bitboard pawns, const Bitboar
 				// Check if performing en passant puts us in check.
 				// Only sliding pieces can put us in check here.
 				const auto new_occ = (occ ^ from ^ target) | board.en_passant;
-				if (   (attacks_from<Bishop>(ksq, new_occ) & board.bishops_queens & enemy)
-					|| (attacks_from<Rook>  (ksq, new_occ) & board.rooks_queens & enemy))
+				if ((attacks_from<Bishop>(ksq, new_occ) & board.bishops_queens & enemy) ||
+					(attacks_from<Rook>(ksq, new_occ) & board.rooks_queens & enemy))
 					continue;
 
 				++nodes;
@@ -2423,7 +2455,7 @@ inline Nodes count_pawns(const Board &board, const Bitboard pawns, const Bitboar
 	{
 		while (bb)
 		{
-			const auto to = static_cast<Square>(lsb(bb)); 
+			const auto to = static_cast<Square>(lsb(bb));
 			const auto from = to - Up * 2;
 			bb &= (bb - 1);
 
@@ -2452,7 +2484,7 @@ inline Nodes count_pawns(const Board &board, const Bitboard pawns, const Bitboar
 			const auto to = static_cast<Square>(lsb(bb));
 			const auto from = to - UpWest;
 			bb &= (bb - 1);
-			
+
 			if (!aligned(ksq, from, to))
 				continue;
 
@@ -2471,7 +2503,7 @@ inline Nodes count_pawns(const Board &board, const Bitboard pawns, const Bitboar
 			const auto to = static_cast<Square>(lsb(bb));
 			const auto from = to - UpEast;
 			bb &= (bb - 1);
-			
+
 			if (!aligned(ksq, from, to))
 				continue;
 
@@ -2490,7 +2522,7 @@ inline Nodes count_pawns(const Board &board, const Bitboard pawns, const Bitboar
 			const auto to = static_cast<Square>(lsb(bb));
 			const auto from = to - UpWest;
 			bb &= (bb - 1);
-			
+
 			if (!aligned(ksq, from, to))
 				continue;
 
@@ -2509,7 +2541,7 @@ inline Nodes count_pawns(const Board &board, const Bitboard pawns, const Bitboar
 			const auto to = static_cast<Square>(lsb(bb));
 			const auto from = to - UpEast;
 			bb &= (bb - 1);
-			
+
 			if (!aligned(ksq, from, to))
 				continue;
 
